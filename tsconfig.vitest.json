@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": ["src/**/__tests__/*", "test/**/*"],
+  "exclude": [],
+  "compilerOptions": {
+    "types": ["vitest/globals", "vite-plugin-pwa/vue"],
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo"
+  }
+}

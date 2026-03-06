@@ -1,11 +1,46 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useAccount, useLogOut } from 'community-jazz-vue'
+import { BaseInput } from '@/components/ui/input'
+import ReloadPrompt from './components/ReloadPrompt.vue'
+
+const me = useAccount(undefined, { resolve: { profile: true } })
+const logOut = useLogOut()
+
+const usernameWidth = computed(() => {
+  const m = me.value
+  if (!m?.$isLoaded) return '10ch'
+  return `${m.profile?.name?.length || 10}ch`
+})
+
+function updateName(value: string | undefined) {
+  const m = me.value
+  if (!m?.$isLoaded) return
+  m.profile?.$jazz.set('name', value ?? '')
+}
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <div class="flex h-screen w-screen flex-col bg-stone-100 dark:bg-stone-925 dark:text-white">
+    <h1 class="sr-only">Vue Jazz Chat</h1>
+    <header
+      v-if="me.$isLoaded"
+      class="flex w-full items-center gap-2 bg-stone-100 px-3 pb-3 pt-2 dark:border-stone-900 dark:bg-transparent"
+    >
+      <BaseInput
+        type="text"
+        aria-label="Username"
+        :model-value="me.profile?.name"
+        :style="{ width: usernameWidth }"
+        class="h-auto min-w-0 max-w-full rounded-none border-none bg-transparent px-0 py-0 text-lg shadow-none outline-none focus-visible:ring-0"
+        placeholder="Set username"
+        @update:model-value="updateName"
+      />
+      <button type="button" class="ml-auto cursor-pointer" @click="logOut">Log out</button>
+    </header>
+    <main class="flex flex-1 flex-col overflow-hidden">
+      <router-view />
+    </main>
+    <ReloadPrompt />
+  </div>
 </template>
-
-<style scoped></style>
