@@ -51,6 +51,31 @@
   ::file-selector-button {
     border-color: var(--border-default, currentColor);
   }
+
+  /* Dark mode scrollbar — Webkit (Chrome, Safari, Edge) */
+  .dark ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: var(--color-stone-925);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: var(--color-stone-700);
+    border-radius: 3px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-stone-600);
+  }
+
+  /* Dark mode scrollbar — Firefox */
+  .dark {
+    scrollbar-color: var(--color-stone-700) var(--color-stone-925);
+    scrollbar-width: thin;
+  }
 }
 
 @layer utilities {
