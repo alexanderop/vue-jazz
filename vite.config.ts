@@ -19,7 +19,10 @@ export default defineConfig({
         name: 'Vue Jazz Chat',
         short_name: 'JazzChat',
         description: 'A real-time collaborative chat app',
+        display: 'standalone',
+        start_url: '/',
         theme_color: '#ffffff',
+        background_color: '#f5f5f4',
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -33,6 +36,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallback: 'index.html',
+        navigateFallbackAllowlist: [/^\/(?!api\/).*$/],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>

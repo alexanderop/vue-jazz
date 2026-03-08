@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { JazzVueProvider } from 'community-jazz-vue'
-import type { SyncConfig } from 'jazz-tools'
+import { type SyncConfig, SubscriptionScope } from 'jazz-tools'
 import { h } from 'vue'
 import App from './App.vue'
 
-const isDev = import.meta.env.DEV
-if (isDev) {
-  import('jazz-tools/inspector/register-custom-element')
+// Register unconditionally so the inspector shows in production too
+SubscriptionScope.enableProfiling()
+const modules = import.meta.glob('/node_modules/jazz-tools/dist/inspector/custom-element-*.js')
+for (const path of Object.keys(modules)) {
+  modules[path]?.()
 }
 
 const characters = [
@@ -36,7 +38,6 @@ const defaultProfileName = getRandomUsername()
   <JazzVueProvider :sync="sync" :defaultProfileName="defaultProfileName">
     <App />
     <component
-      v-if="isDev"
       :is="
         h('jazz-inspector', {
           style: { position: 'fixed', left: '20px', bottom: '20px', zIndex: 9999 },

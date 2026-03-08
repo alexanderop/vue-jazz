@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useAccount, useLogOut } from 'community-jazz-vue'
 import { BaseInput } from '@/components/ui/input'
 import ReloadPrompt from './components/ReloadPrompt.vue'
+import InstallPrompt from './components/InstallPrompt.vue'
+import NetworkStatus from './components/NetworkStatus.vue'
 
 const me = useAccount(undefined, { resolve: { profile: true } })
 const logOut = useLogOut()
@@ -22,6 +24,7 @@ function updateName(value: string | undefined) {
 
 <template>
   <div class="flex h-screen w-screen flex-col bg-stone-100 dark:bg-stone-925 dark:text-white">
+    <NetworkStatus />
     <h1 class="sr-only">Vue Jazz Chat</h1>
     <header
       v-if="me.$isLoaded"
@@ -42,5 +45,6 @@ function updateName(value: string | undefined) {
       <router-view />
     </main>
     <ReloadPrompt />
+    <InstallPrompt />
   </div>
 </template>
