@@ -10,6 +10,8 @@ export const Message = co
   .resolved({
     image: true,
   })
+  // Reuse the Chat's owner group instead of creating a new group per message.
+  // This avoids a chain of group extensions that would slow down loading.
   .withPermissions({
     onInlineCreate: 'sameAsContainer',
   })

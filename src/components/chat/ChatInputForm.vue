@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { BaseInput } from '@/components/ui/input'
+import { featureFlags } from '@/config/featureFlags'
 
 const { modelValue, uploadError, isUploading } = defineProps<{
   modelValue: string
@@ -31,7 +32,11 @@ function handleFileChange(e: Event) {
 </script>
 
 <template>
-  <p v-if="uploadError" class="px-3 text-sm text-red-500" role="alert">
+  <p
+    v-if="featureFlags.enableImageUpload && uploadError"
+    class="px-3 text-sm text-red-500"
+    role="alert"
+  >
     {{ uploadError }}
   </p>
   <form
@@ -39,6 +44,7 @@ function handleFileChange(e: Event) {
     @submit.prevent="emit('submit')"
   >
     <label
+      v-if="featureFlags.enableImageUpload"
       tabindex="0"
       role="button"
       class="grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-500 transition-colors hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-200"

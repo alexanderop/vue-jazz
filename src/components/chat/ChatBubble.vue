@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Message } from '@/schema'
+import { featureFlags } from '@/config/featureFlags'
 import BubbleInfo from './BubbleInfo.vue'
 import ChatImage from './ChatImage.vue'
 
@@ -22,7 +23,7 @@ const fromMe = computed(() => msg.$jazz.createdBy === meId)
       ]"
     >
       <ChatImage
-        v-if="msg.image"
+        v-if="featureFlags.enableImageUpload && msg.image"
         :imageId="msg.image.$jazz.id"
         :alt="String(msg.text || 'Shared image')"
       />
