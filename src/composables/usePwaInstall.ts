@@ -1,13 +1,11 @@
-import { ref, computed, onScopeDispose } from 'vue'
+import { ref, computed } from 'vue'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
 const DISMISS_DAYS = 30
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const deferredPrompt = ref<any>(null)
-const isInstalled = ref(false)
-
-let initialized = false
+const isInstalled = ref(isStandalone())
 
 function isStandalone(): boolean {
   return (
@@ -29,31 +27,17 @@ function isDismissed(): boolean {
   return daysSince < DISMISS_DAYS
 }
 
+globalThis.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  deferredPrompt.value = e
+})
+
+globalThis.addEventListener('appinstalled', () => {
+  isInstalled.value = true
+  deferredPrompt.value = null
+})
+
 export function usePwaInstall() {
-  if (!initialized) {
-    initialized = true
-    isInstalled.value = isStandalone()
-
-    const handlePrompt: EventListener = (e) => {
-      e.preventDefault()
-      deferredPrompt.value = e
-    }
-
-    const handleInstalled = () => {
-      isInstalled.value = true
-      deferredPrompt.value = null
-    }
-
-    globalThis.addEventListener('beforeinstallprompt', handlePrompt)
-    globalThis.addEventListener('appinstalled', handleInstalled)
-
-    onScopeDispose(() => {
-      globalThis.removeEventListener('beforeinstallprompt', handlePrompt)
-      globalThis.removeEventListener('appinstalled', handleInstalled)
-      initialized = false
-    })
-  }
-
   const canInstall = computed(() => deferredPrompt.value !== null)
   const showIosPrompt = computed(() => isIosSafari() && !isInstalled.value && !isDismissed())
   const showInstallPrompt = computed(

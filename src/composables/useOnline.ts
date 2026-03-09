@@ -1,45 +1,27 @@
-import { ref, onScopeDispose } from 'vue'
+import { ref } from 'vue'
 
 const isOnline = ref(navigator.onLine)
 const showReconnected = ref(false)
 
-let initialized = false
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-export function useOnline() {
-  if (!initialized) {
-    initialized = true
+globalThis.addEventListener('online', () => {
+  isOnline.value = true
+  showReconnected.value = true
+  reconnectTimer = setTimeout(() => {
+    showReconnected.value = false
+  }, 3000)
+})
 
-    const handleOnline = () => {
-      isOnline.value = true
-      showReconnected.value = true
-      reconnectTimer = setTimeout(() => {
-        showReconnected.value = false
-      }, 3000)
-    }
-
-    const handleOffline = () => {
-      isOnline.value = false
-      showReconnected.value = false
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer)
-        reconnectTimer = null
-      }
-    }
-
-    globalThis.addEventListener('online', handleOnline)
-    globalThis.addEventListener('offline', handleOffline)
-
-    onScopeDispose(() => {
-      globalThis.removeEventListener('online', handleOnline)
-      globalThis.removeEventListener('offline', handleOffline)
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer)
-        reconnectTimer = null
-      }
-      initialized = false
-    })
+globalThis.addEventListener('offline', () => {
+  isOnline.value = false
+  showReconnected.value = false
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
   }
+})
 
+export function useOnline() {
   return { isOnline, showReconnected }
 }

@@ -8,11 +8,9 @@ const { createdBy, createdAt } = defineProps<{
   createdAt: number
 }>()
 
-const formattedTime = computed(() =>
-  new Date(createdAt).toLocaleTimeString('en-US', { hour12: false }),
-)
-
-const isoTime = computed(() => new Date(createdAt).toISOString())
+const date = computed(() => new Date(createdAt))
+const formattedTime = computed(() => date.value.toLocaleTimeString('en-US', { hour12: false }))
+const isoTime = computed(() => date.value.toISOString())
 
 const by = useCoState(Account, () => createdBy, {
   resolve: { profile: true },
