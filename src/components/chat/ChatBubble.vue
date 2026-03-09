@@ -14,7 +14,7 @@ const fromMe = computed(() => msg.$jazz.createdBy === meId)
 
 <template>
   <div :class="[fromMe ? 'items-end' : 'items-start', 'flex flex-col m-3']">
-    <BubbleInfo :createdBy="msg.$jazz.createdBy" :createdAt="msg.$jazz.createdAt" />
+    <BubbleInfo :msg="msg" />
     <div
       :class="[
         'line-clamp-10 text-ellipsis whitespace-pre-wrap rounded-2xl overflow-hidden max-w-[calc(100%-5rem)] shadow-sm p-1',

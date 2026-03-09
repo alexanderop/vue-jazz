@@ -12,17 +12,26 @@ const isInstalled = ref(
     ('standalone' in globalThis.navigator && Boolean(globalThis.navigator.standalone)),
 )
 
-function isIosSafari(): boolean {
+export function isIosSafari(): boolean {
   const ua = globalThis.navigator.userAgent
   return /iP(?:hone|od|ad)/.test(ua) && /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS/.test(ua)
 }
 
-function isDismissed(): boolean {
+export function isDismissed(): boolean {
   const dismissed = localStorage.getItem(DISMISS_KEY)
   if (!dismissed) return false
   const dismissedAt = Number(dismissed)
   const daysSince = (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24)
   return daysSince < DISMISS_DAYS
+}
+
+export function shouldShowInstallPrompt(opts: {
+  canInstall: boolean
+  isIos: boolean
+  installed: boolean
+  dismissed: boolean
+}): boolean {
+  return (opts.canInstall || opts.isIos) && !opts.installed && !opts.dismissed
 }
 
 useEventListener(globalThis, 'beforeinstallprompt', (e) => {
@@ -36,10 +45,16 @@ useEventListener(globalThis, 'appinstalled', () => {
 })
 
 export function usePwaInstall() {
+  const dismissed = ref(isDismissed())
   const canInstall = computed(() => deferredPrompt.value !== null)
-  const showIosPrompt = computed(() => isIosSafari() && !isInstalled.value && !isDismissed())
-  const showInstallPrompt = computed(
-    () => (canInstall.value || showIosPrompt.value) && !isInstalled.value && !isDismissed(),
+  const showIosPrompt = computed(() => isIosSafari() && !isInstalled.value && !dismissed.value)
+  const showInstallPrompt = computed(() =>
+    shouldShowInstallPrompt({
+      canInstall: canInstall.value,
+      isIos: showIosPrompt.value,
+      installed: isInstalled.value,
+      dismissed: dismissed.value,
+    }),
   )
 
   async function install() {
@@ -54,6 +69,7 @@ export function usePwaInstall() {
 
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, String(Date.now()))
+    dismissed.value = true
     deferredPrompt.value = null
   }
 

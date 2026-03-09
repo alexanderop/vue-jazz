@@ -2,17 +2,17 @@
 import { computed } from 'vue'
 import { useCoState } from 'community-jazz-vue'
 import { Account } from 'jazz-tools'
+import type { Message } from '@/schema'
 
-const { createdBy, createdAt } = defineProps<{
-  createdBy?: string
-  createdAt: number
+const { msg } = defineProps<{
+  msg: Message
 }>()
 
-const date = computed(() => new Date(createdAt))
+const date = computed(() => new Date(msg.$jazz.createdAt))
 const formattedTime = computed(() => date.value.toLocaleTimeString('en-US', { hour12: false }))
 const isoTime = computed(() => date.value.toISOString())
 
-const by = useCoState(Account, () => createdBy, {
+const by = useCoState(Account, () => msg.$jazz.createdBy, {
   resolve: { profile: true },
 })
 </script>

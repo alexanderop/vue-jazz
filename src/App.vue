@@ -1,39 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useClipboard } from '@vueuse/core'
-import { useAccount, useLogOut } from 'community-jazz-vue'
+import { useLogOut } from 'community-jazz-vue'
 import { BaseInput } from '@/components/ui/input'
+import { useProfileEditor } from '@/composables/useProfileEditor'
+import { useChatIdClipboard } from '@/composables/useChatIdClipboard'
 import ReloadPrompt from './components/ReloadPrompt.vue'
 import InstallPrompt from './components/InstallPrompt.vue'
 import NetworkStatus from './components/NetworkStatus.vue'
 
-const route = useRoute()
-const me = useAccount(undefined, { resolve: { profile: true } })
+const { me, usernameWidth, updateName } = useProfileEditor()
+const { chatId, copied, copyId } = useChatIdClipboard()
 const logOut = useLogOut()
-
-const chatId = computed<string | undefined>(() => {
-  if (!('chatId' in route.params)) return undefined
-  const id = route.params.chatId
-  return Array.isArray(id) ? id[0] : id
-})
-const { copy, copied } = useClipboard({ copiedDuring: 1500 })
-
-function copyId() {
-  if (chatId.value) copy(chatId.value)
-}
-
-const usernameWidth = computed(() => {
-  const m = me.value
-  if (!m?.$isLoaded) return '10ch'
-  return `${m.profile?.name?.length || 10}ch`
-})
-
-function updateName(value: string | undefined) {
-  const m = me.value
-  if (!m?.$isLoaded) return
-  m.profile?.$jazz.set('name', value ?? '')
-}
 </script>
 
 <template>
