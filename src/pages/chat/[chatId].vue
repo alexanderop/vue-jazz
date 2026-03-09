@@ -18,7 +18,7 @@ const MAX_IMAGE_SIZE_BYTES = 5_000_000
 const { chatId } = defineProps<{ chatId: ID<typeof Chat> }>()
 
 const chat = useCoState(Chat, () => chatId, {
-  resolve: { $each: { text: true, image: true } },
+  resolve: { $each: { image: true } },
 })
 const me = useAccount(undefined, { resolve: { profile: true } })
 

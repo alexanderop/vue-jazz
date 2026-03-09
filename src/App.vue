@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useClipboard } from '@vueuse/core'
 import { useAccount, useLogOut } from 'community-jazz-vue'
 import { BaseInput } from '@/components/ui/input'
 import ReloadPrompt from './components/ReloadPrompt.vue'
@@ -16,13 +17,10 @@ const chatId = computed<string | undefined>(() => {
   const id = route.params.chatId
   return Array.isArray(id) ? id[0] : id
 })
-const copied = ref(false)
+const { copy, copied } = useClipboard({ copiedDuring: 1500 })
 
-async function copyId() {
-  if (!chatId.value) return
-  await navigator.clipboard.writeText(chatId.value)
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1500)
+function copyId() {
+  if (chatId.value) copy(chatId.value)
 }
 
 const usernameWidth = computed(() => {

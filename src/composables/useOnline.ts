@@ -1,24 +1,24 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useNetwork, useTimeoutFn } from '@vueuse/core'
 
-const isOnline = ref(navigator.onLine)
+const { isOnline } = useNetwork()
 const showReconnected = ref(false)
 
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-
-globalThis.addEventListener('online', () => {
-  isOnline.value = true
-  showReconnected.value = true
-  reconnectTimer = setTimeout(() => {
+const { start, stop } = useTimeoutFn(
+  () => {
     showReconnected.value = false
-  }, 3000)
-})
+  },
+  3000,
+  { immediate: false },
+)
 
-globalThis.addEventListener('offline', () => {
-  isOnline.value = false
-  showReconnected.value = false
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer)
-    reconnectTimer = null
+watch(isOnline, (online) => {
+  if (online) {
+    showReconnected.value = true
+    start()
+  } else {
+    showReconnected.value = false
+    stop()
   }
 })
 

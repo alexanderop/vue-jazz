@@ -4,11 +4,10 @@ setDefaultValidationMode('strict')
 
 export const Message = co
   .map({
-    text: co.plainText(),
+    text: co.string,
     image: co.optional(co.image()),
   })
   .resolved({
-    text: true,
     image: true,
   })
   .withPermissions({

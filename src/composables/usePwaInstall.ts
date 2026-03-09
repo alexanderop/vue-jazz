@@ -1,18 +1,16 @@
 import { ref, computed } from 'vue'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
 const DISMISS_DAYS = 30
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const deferredPrompt = ref<any>(null)
-const isInstalled = ref(isStandalone())
-
-function isStandalone(): boolean {
-  return (
-    globalThis.matchMedia('(display-mode: standalone)').matches ||
-    ('standalone' in globalThis.navigator && Boolean(globalThis.navigator.standalone))
-  )
-}
+const isStandalone = useMediaQuery('(display-mode: standalone)')
+const isInstalled = ref(
+  isStandalone.value ||
+    ('standalone' in globalThis.navigator && Boolean(globalThis.navigator.standalone)),
+)
 
 function isIosSafari(): boolean {
   const ua = globalThis.navigator.userAgent
@@ -27,12 +25,12 @@ function isDismissed(): boolean {
   return daysSince < DISMISS_DAYS
 }
 
-globalThis.addEventListener('beforeinstallprompt', (e) => {
+useEventListener(globalThis, 'beforeinstallprompt', (e) => {
   e.preventDefault()
   deferredPrompt.value = e
 })
 
-globalThis.addEventListener('appinstalled', () => {
+useEventListener(globalThis, 'appinstalled', () => {
   isInstalled.value = true
   deferredPrompt.value = null
 })
