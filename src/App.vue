@@ -14,6 +14,11 @@ const logOut = useLogOut()
 
 <template>
   <div class="flex h-screen w-screen flex-col bg-stone-100 dark:bg-stone-925 dark:text-white">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:text-black"
+      >Skip to content</a
+    >
     <NetworkStatus />
     <h1 class="sr-only">Vue Jazz Chat</h1>
     <header
@@ -32,6 +37,7 @@ const logOut = useLogOut()
       <button
         v-if="chatId"
         type="button"
+        aria-label="Copy chat ID"
         class="ml-auto flex items-center gap-1 rounded bg-stone-200 px-2 py-0.5 font-mono text-xs text-stone-600 transition-colors hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
         @click="copyId"
       >
@@ -41,7 +47,7 @@ const logOut = useLogOut()
         Log out
       </button>
     </header>
-    <main class="flex flex-1 flex-col overflow-hidden">
+    <main id="main-content" class="flex flex-1 flex-col overflow-hidden">
       <router-view />
     </main>
     <ReloadPrompt />

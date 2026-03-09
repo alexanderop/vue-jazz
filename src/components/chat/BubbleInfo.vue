@@ -18,7 +18,7 @@ const by = useCoState(Account, () => msg.$jazz.createdBy, {
 </script>
 
 <template>
-  <div class="mb-1.5 h-4 text-xs text-neutral-600">
+  <div class="mb-1.5 h-4 text-xs text-neutral-600 dark:text-neutral-400">
     <template v-if="by.$isLoaded">
       {{ by.profile?.name }} &middot;
       <time :datetime="isoTime">{{ formattedTime }}</time>

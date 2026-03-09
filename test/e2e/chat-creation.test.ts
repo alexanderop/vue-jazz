@@ -11,6 +11,9 @@ test('each visit creates a unique chat ID', async ({ page }) => {
   await page.waitForURL(/\/chat\/co_z/)
   const firstUrl = page.url()
 
+  // Clear cached chat ID so index.vue creates a new one
+  await page.evaluate(() => localStorage.removeItem('vue-jazz-last-chat-id'))
+
   await page.goto('/')
   await page.waitForURL(/\/chat\/co_z/)
   const secondUrl = page.url()
@@ -19,11 +22,8 @@ test('each visit creates a unique chat ID', async ({ page }) => {
 })
 
 test('shows loading skeleton on the chat page before data loads', async ({ page }) => {
-  // Block Jazz sync so the chat data never resolves, keeping the skeleton visible
-  await page.route('**/cloud.jazz.tools/**', (route) => route.abort())
-  await page.goto('/')
-  // The index page creates a chat and redirects — the chat page shows a skeleton
-  // while waiting for data to load (which never resolves since sync is blocked)
+  // Navigate directly to a non-existent chat ID so useCoState never resolves
+  await page.goto('/chat/co_zNonExistentFakeChatId123456789')
   const skeleton = page.locator('[role="status"]')
   await expect(skeleton).toBeVisible({ timeout: 10_000 })
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Message } from '../../schema'
+import type { Message } from '@/schema'
 import BubbleInfo from './BubbleInfo.vue'
 import ChatImage from './ChatImage.vue'
 

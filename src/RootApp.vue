@@ -4,11 +4,14 @@ import { type SyncConfig, SubscriptionScope } from 'jazz-tools'
 import { h } from 'vue'
 import App from './App.vue'
 
-// Register unconditionally so the inspector shows in production too
-SubscriptionScope.enableProfiling()
-const modules = import.meta.glob('/node_modules/jazz-tools/dist/inspector/custom-element-*.js')
-for (const path of Object.keys(modules)) {
-  modules[path]?.()
+const isDev = import.meta.env.DEV
+
+if (isDev) {
+  SubscriptionScope.enableProfiling()
+  const modules = import.meta.glob('/node_modules/jazz-tools/dist/inspector/custom-element-*.js')
+  for (const path of Object.keys(modules)) {
+    modules[path]?.()
+  }
 }
 
 const characters = [
@@ -38,6 +41,7 @@ const defaultProfileName = getRandomUsername()
   <JazzVueProvider :sync="sync" :defaultProfileName="defaultProfileName">
     <App />
     <component
+      v-if="isDev"
       :is="
         h('jazz-inspector', {
           style: { position: 'fixed', left: '20px', bottom: '20px', zIndex: 9999 },

@@ -4,6 +4,7 @@ import type { ID } from 'jazz-tools'
 import { Chat } from '@/schema'
 import { useCurrentUser } from './useCurrentUser'
 
+export const LAST_CHAT_KEY = 'vue-jazz-last-chat-id'
 const INITIAL_MESSAGES_TO_SHOW = 30
 const MAX_IMAGE_SIZE_BYTES = 5_000_000
 
@@ -23,7 +24,7 @@ export function useChat(chatId: MaybeRefOrGetter<ID<typeof Chat>>) {
   const displayedMessages = computed(() => {
     const c = chat.value
     if (!c?.$isLoaded) return []
-    return c.slice(-showNLastMessages.value).filter(Boolean).toReversed()
+    return c.slice(-showNLastMessages.value).filter(Boolean)
   })
 
   const hasMore = computed(() =>
@@ -37,16 +38,11 @@ export function useChat(chatId: MaybeRefOrGetter<ID<typeof Chat>>) {
     inputValue.value = ''
   }
 
-  async function sendImage(event: Event) {
+  async function sendImage(file: File) {
     const c = chat.value
     if (!c?.$isLoaded) return
     uploadError.value = ''
-    const { target } = event
-    if (!(target instanceof HTMLInputElement)) return
-    const file = target.files?.[0]
-    if (!file) return
 
-    target.value = '' // Reset so re-selecting the same file triggers change
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       uploadError.value = 'Please upload an image less than 5MB.'
       return

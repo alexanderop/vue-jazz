@@ -1,16 +1,8 @@
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
 const DISMISS_DAYS = 30
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const deferredPrompt = ref<any>(null)
-const isStandalone = useMediaQuery('(display-mode: standalone)')
-const isInstalled = ref(
-  isStandalone.value ||
-    ('standalone' in globalThis.navigator && Boolean(globalThis.navigator.standalone)),
-)
 
 export function isIosSafari(): boolean {
   const ua = globalThis.navigator.userAgent
@@ -34,17 +26,35 @@ export function shouldShowInstallPrompt(opts: {
   return (opts.canInstall || opts.isIos) && !opts.installed && !opts.dismissed
 }
 
-useEventListener(globalThis, 'beforeinstallprompt', (e) => {
-  e.preventDefault()
-  deferredPrompt.value = e
-})
-
-useEventListener(globalThis, 'appinstalled', () => {
-  isInstalled.value = true
-  deferredPrompt.value = null
-})
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let deferredPrompt: Ref<any>
+let isInstalled: Ref<boolean>
+let isStandalone: ComputedRef<boolean> | Ref<boolean>
+let initialized = false
 
 export function usePwaInstall() {
+  if (!initialized) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    deferredPrompt = ref<any>(null)
+    isStandalone = useMediaQuery('(display-mode: standalone)')
+    isInstalled = ref(
+      isStandalone.value ||
+        ('standalone' in globalThis.navigator && Boolean(globalThis.navigator.standalone)),
+    )
+
+    useEventListener(globalThis, 'beforeinstallprompt', (e) => {
+      e.preventDefault()
+      deferredPrompt.value = e
+    })
+
+    useEventListener(globalThis, 'appinstalled', () => {
+      isInstalled.value = true
+      deferredPrompt.value = null
+    })
+
+    initialized = true
+  }
+
   const dismissed = ref(isDismissed())
   const canInstall = computed(() => deferredPrompt.value !== null)
   const showIosPrompt = computed(() => isIosSafari() && !isInstalled.value && !dismissed.value)

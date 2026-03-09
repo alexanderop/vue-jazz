@@ -15,7 +15,11 @@ const {
 </script>
 
 <template>
-  <button data-slot="button" :class="cn(buttonVariants({ variant, size }), className)">
+  <button
+    type="button"
+    data-slot="button"
+    :class="cn(buttonVariants({ variant, size }), className)"
+  >
     <slot />
   </button>
 </template>

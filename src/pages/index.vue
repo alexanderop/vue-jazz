@@ -4,10 +4,17 @@ import { useRouter } from 'vue-router'
 import { Chat } from '@/schema'
 import { BaseSkeleton } from '@/components/ui/skeleton'
 
+import { LAST_CHAT_KEY } from '@/composables/useChat'
 const router = useRouter()
 
 onMounted(() => {
+  const lastChatId = localStorage.getItem(LAST_CHAT_KEY)
+  if (lastChatId) {
+    router.push({ name: '/chat/[chatId]', params: { chatId: lastChatId } })
+    return
+  }
   const chat = Chat.create([])
+  localStorage.setItem(LAST_CHAT_KEY, chat.$jazz.id)
   router.push({ name: '/chat/[chatId]', params: { chatId: chat.$jazz.id } })
 })
 </script>

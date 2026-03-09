@@ -5,12 +5,14 @@
 <script setup lang="ts">
 import type { ID } from 'jazz-tools'
 import type { Chat } from '@/schema'
-import { useChat } from '@/composables/useChat'
+import { useChat, LAST_CHAT_KEY } from '@/composables/useChat'
 import { BaseSkeleton } from '@/components/ui/skeleton'
 import ChatMessageList from '@/components/chat/ChatMessageList.vue'
 import ChatInputForm from '@/components/chat/ChatInputForm.vue'
 
 const { chatId } = defineProps<{ chatId: ID<typeof Chat> }>()
+
+localStorage.setItem(LAST_CHAT_KEY, chatId)
 
 const {
   me,

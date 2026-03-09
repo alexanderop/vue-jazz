@@ -11,7 +11,7 @@ const { isOnline, showReconnected } = useOnline()
     role="status"
     aria-live="polite"
   >
-    <span class="inline-block h-2 w-2 rounded-full bg-white/70" />
+    <span class="inline-block h-2 w-2 rounded-full bg-white/70" aria-hidden="true" />
     You're offline — changes will sync when reconnected
   </div>
   <div
@@ -20,7 +20,7 @@ const { isOnline, showReconnected } = useOnline()
     role="status"
     aria-live="polite"
   >
-    <span class="inline-block h-2 w-2 rounded-full bg-white/70" />
+    <span class="inline-block h-2 w-2 rounded-full bg-white/70" aria-hidden="true" />
     Back online
   </div>
 </template>

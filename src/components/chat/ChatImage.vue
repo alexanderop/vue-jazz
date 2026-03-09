@@ -12,7 +12,7 @@ const { imageId, alt } = defineProps<{
     :imageId="imageId"
     :alt="alt"
     class="mb-1 h-auto max-h-80 max-w-full rounded-t-xl object-contain"
-    height="original"
-    width="original"
+    :height="600"
+    :width="600"
   />
 </template>

@@ -1,13 +1,13 @@
 import { computed } from 'vue'
-import { useAccount } from 'community-jazz-vue'
+import { useCurrentUser } from './useCurrentUser'
 
 export function useProfileEditor() {
-  const me = useAccount(undefined, { resolve: { profile: true } })
+  const me = useCurrentUser()
 
   const usernameWidth = computed(() => {
     const m = me.value
     if (!m?.$isLoaded) return '10ch'
-    return `${m.profile?.name?.length || 10}ch`
+    return `${(m.profile?.name?.length || 10) + 2}ch`
   })
 
   function updateName(value: string | undefined) {

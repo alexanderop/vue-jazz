@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { BaseInput } from '@/components/ui/input'
 
 const { modelValue, uploadError, isUploading } = defineProps<{
@@ -10,8 +11,23 @@ const { modelValue, uploadError, isUploading } = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string | undefined]
   submit: []
-  upload: [event: Event]
+  upload: [file: File]
 }>()
+
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+function openFilePicker() {
+  fileInputRef.value?.click()
+}
+
+function handleFileChange(e: Event) {
+  if (!(e.target instanceof HTMLInputElement)) return
+  const file = e.target.files?.[0]
+  if (file) {
+    emit('upload', file)
+    e.target.value = ''
+  }
+}
 </script>
 
 <template>
@@ -23,8 +39,12 @@ const emit = defineEmits<{
     @submit.prevent="emit('submit')"
   >
     <label
+      tabindex="0"
+      role="button"
       class="grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-500 transition-colors hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-200"
       :class="{ 'pointer-events-none opacity-50': isUploading }"
+      @keydown.enter.prevent="openFilePicker"
+      @keydown.space.prevent="openFilePicker"
     >
       <span class="sr-only">Send image</span>
       <svg
@@ -44,11 +64,12 @@ const emit = defineEmits<{
         <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
       </svg>
       <input
+        ref="fileInputRef"
         type="file"
         accept="image/png, image/jpeg, image/gif"
         class="hidden"
         :disabled="isUploading"
-        @change="emit('upload', $event)"
+        @change="handleFileChange"
       />
     </label>
     <div class="relative flex-1">
