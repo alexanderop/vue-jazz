@@ -1,10 +1,10 @@
-import { co, setDefaultValidationMode } from 'jazz-tools'
+import { co, z, setDefaultValidationMode } from 'jazz-tools'
 
 setDefaultValidationMode('strict')
 
 export const Message = co
   .map({
-    text: co.string,
+    text: z.string(),
     image: co.optional(co.image()),
   })
   .resolved({
