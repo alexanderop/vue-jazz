@@ -168,6 +168,16 @@
     "regexp/prefer-w": "warn",
     "regexp/sort-flags": "warn"
   },
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "typescript/consistent-type-assertions": "off",
+        "max-lines-per-function": "off",
+        "vue/require-typed-ref": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     ".output/**",
     ".data/**",

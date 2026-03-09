@@ -1,29 +1,25 @@
 import { expect, test } from '@playwright/test'
+import { ChatPage } from './pages'
 
 test('redirects from / to a chat page with a co_z ID', async ({ page }) => {
-  await page.goto('/')
-  await page.waitForURL(/\/chat\/co_z/)
-  expect(page.url()).toMatch(/\/chat\/co_z/)
+  const chat = await ChatPage.createFromHome(page)
+  expect(await chat.getCurrentUrl()).toMatch(/\/chat\/co_z/)
 })
 
 test('each visit creates a unique chat ID', async ({ page }) => {
-  await page.goto('/')
-  await page.waitForURL(/\/chat\/co_z/)
-  const firstUrl = page.url()
+  const chat = await ChatPage.createFromHome(page)
+  const firstUrl = await chat.getCurrentUrl()
 
-  // Clear cached chat ID so index.vue creates a new one
   await page.evaluate(() => localStorage.removeItem('vue-jazz-last-chat-id'))
 
-  await page.goto('/')
-  await page.waitForURL(/\/chat\/co_z/)
-  const secondUrl = page.url()
+  const chat2 = await ChatPage.createFromHome(page)
+  const secondUrl = await chat2.getCurrentUrl()
 
   expect(firstUrl).not.toBe(secondUrl)
 })
 
 test('shows loading skeleton on the chat page before data loads', async ({ page }) => {
-  // Navigate directly to a non-existent chat ID so useCoState never resolves
+  const chat = new ChatPage(page)
   await page.goto('/chat/co_zNonExistentFakeChatId123456789')
-  const skeleton = page.locator('[role="status"]')
-  await expect(skeleton).toBeVisible({ timeout: 10_000 })
+  await expect(chat.loadingSkeleton).toBeVisible({ timeout: 10_000 })
 })

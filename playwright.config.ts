@@ -18,7 +18,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev --port 4173',
+    command: process.env.CI
+      ? 'pnpm preview --port 4173'
+      : 'pnpm build-only && pnpm preview --port 4173',
     port: 4173,
     reuseExistingServer: !process.env.CI,
   },

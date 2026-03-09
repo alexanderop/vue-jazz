@@ -1,38 +1,34 @@
 import { expect, test } from '@playwright/test'
+import { ChatPage } from './pages'
+
+let chat: ChatPage
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
-  await page.waitForURL(/\/chat\/co_z/)
+  chat = await ChatPage.createFromHome(page)
 })
 
-test('has a random username on load', async ({ page }) => {
-  const usernameInput = page.locator('[aria-label="Username"]')
-  await expect(usernameInput).toBeVisible()
-  const username = await usernameInput.inputValue()
+test('has a random username on load', async () => {
+  await expect(chat.header.usernameInput).toBeVisible()
+  const username = await chat.header.getUsername()
   expect(username.length).toBeGreaterThan(0)
 })
 
 test('can edit username inline', async ({ page }) => {
-  const usernameInput = page.locator('[aria-label="Username"]')
-  await expect(usernameInput).toBeVisible()
+  await expect(chat.header.usernameInput).toBeVisible()
 
-  await usernameInput.fill('TestUser123')
-  await expect(usernameInput).toHaveValue('TestUser123')
+  await chat.header.setUsername('TestUser123')
+  await expect(chat.header.usernameInput).toHaveValue('TestUser123')
 
-  // Reload and verify persistence
   await page.reload()
-  await expect(page.locator('[aria-label="Username"]')).toHaveValue('TestUser123')
+  const reloaded = new ChatPage(page)
+  await expect(reloaded.header.usernameInput).toHaveValue('TestUser123')
 })
 
-test('edited username appears on sent messages', async ({ page }) => {
-  const usernameInput = page.locator('[aria-label="Username"]')
-  await usernameInput.fill('ChatTester')
+test('edited username appears on sent messages', async () => {
+  await chat.header.usernameInput.fill('ChatTester')
 
-  const input = page.locator('#chat-message-input')
-  await input.fill('Hello with custom name')
-  await input.press('Enter')
+  await chat.sendMessage('Hello with custom name')
 
-  const log = page.locator('[role="log"]')
-  await expect(log.getByText('Hello with custom name')).toBeVisible()
-  await expect(log.getByText('ChatTester')).toBeVisible()
+  await expect(chat.hasMessage('Hello with custom name')).toBeVisible()
+  await expect(chat.chatLog.getByText('ChatTester')).toBeVisible()
 })
