@@ -1,13 +1,29 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAccount, useLogOut } from 'community-jazz-vue'
 import { BaseInput } from '@/components/ui/input'
 import ReloadPrompt from './components/ReloadPrompt.vue'
 import InstallPrompt from './components/InstallPrompt.vue'
 import NetworkStatus from './components/NetworkStatus.vue'
 
+const route = useRoute()
 const me = useAccount(undefined, { resolve: { profile: true } })
 const logOut = useLogOut()
+
+const chatId = computed<string | undefined>(() => {
+  if (!('chatId' in route.params)) return undefined
+  const id = route.params.chatId
+  return Array.isArray(id) ? id[0] : id
+})
+const copied = ref(false)
+
+async function copyId() {
+  if (!chatId.value) return
+  await navigator.clipboard.writeText(chatId.value)
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1500)
+}
 
 const usernameWidth = computed(() => {
   const m = me.value
@@ -39,7 +55,17 @@ function updateName(value: string | undefined) {
         placeholder="Set username"
         @update:model-value="updateName"
       />
-      <button type="button" class="ml-auto cursor-pointer" @click="logOut">Log out</button>
+      <button
+        v-if="chatId"
+        type="button"
+        class="ml-auto flex items-center gap-1 rounded bg-stone-200 px-2 py-0.5 font-mono text-xs text-stone-600 transition-colors hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
+        @click="copyId"
+      >
+        <span>{{ copied ? 'Copied!' : chatId.slice(0, 12) + '…' }}</span>
+      </button>
+      <button type="button" class="cursor-pointer" :class="{ 'ml-auto': !chatId }" @click="logOut">
+        Log out
+      </button>
     </header>
     <main class="flex flex-1 flex-col overflow-hidden">
       <router-view />

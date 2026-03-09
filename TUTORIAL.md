@@ -1,17 +1,17 @@
-# Building a Real-Time Chat App with Jazz and Vue 3
+# Building a Real-Time Chat App with Vue 3 and Jazz
 
-Jazz is a distributed database that syncs across frontends, containers, and the cloud. It feels like working with reactive local JSON state, but everything syncs instantly between users — no REST APIs, no WebSocket plumbing, no conflict resolution code.
+Jazz is a framework for building local-first apps — apps where data lives on the client, syncs instantly between users, and works offline by default. There are no REST APIs to write, no WebSocket plumbing to manage, and no conflict resolution to implement.
 
-In this tutorial, we'll build a real-time collaborative chat application using Jazz and Vue 3. By the end, you'll have a working chat app with authentication, live sync, and edit history — in under 200 lines of code.
+In this tutorial, you'll build a real-time collaborative chat app with Vue 3 and Jazz. The app supports text messages, image uploads with progressive loading, anonymous auth with random usernames, and live sync across multiple browser tabs — all in under 300 lines of code.
 
 ## What You'll Learn
 
-- How to define collaborative data models with Jazz schemas
-- How to set up Jazz in a Vue 3 application
-- How to use `useCoState` and `useAccount` composables for reactive data
-- How to create, mutate, and read collaborative values
-- How to handle authentication with passkeys
-- How permissions and groups work
+- Define collaborative data models with Jazz schemas
+- Set up Jazz in a Vue 3 application with anonymous auth
+- Use `useCoState` and `useAccount` composables for reactive data
+- Create, mutate, and read collaborative values
+- Upload images with progressive loading and blur placeholders
+- Use declarative permissions with `.withPermissions()`
 
 ## Prerequisites
 
@@ -20,20 +20,28 @@ In this tutorial, we'll build a real-time collaborative chat application using J
 
 ---
 
-## Step 1: Scaffold the Project
+# Installation & Setup
 
-Create a new Vue 3 project with TypeScript:
+Scaffold a new Vue 3 project with TypeScript and Vue Router:
 
 ```bash
 npm create vue@latest vue-jazz-chat
 cd vue-jazz-chat
 ```
 
-Select TypeScript, Vue Router, and skip the rest. Then install Jazz:
+Install Jazz:
 
 ```bash
 npm install jazz-tools community-jazz-vue
 ```
+
+Create a `.env` file in your project root:
+
+```
+VITE_JAZZ_KEY=you@example.com
+```
+
+During development you can use your email address as the key. For production, get a key from [jazz.tools](https://jazz.tools).
 
 Your key dependencies in `package.json`:
 
@@ -48,91 +56,170 @@ Your key dependencies in `package.json`:
 }
 ```
 
-## Step 2: Get a Jazz Cloud API Key
-
-Jazz Cloud provides zero-config sync infrastructure. Sign up at [jazz.tools](https://jazz.tools) and get an API key, then add it to your `.env`:
-
-```
-VITE_JAZZ_KEY=you@example.com
-```
-
-During development you can use your email address as the key.
-
 ---
 
-## Step 3: Define Your Schema
+# Define Your Schema
 
-This is where Jazz shines. Instead of designing API endpoints and database tables, you define your data model as collaborative values (CoValues). Jazz handles storage, sync, permissions, and history automatically.
+Instead of designing API endpoints and database tables, you define your data model as collaborative values (CoValues). Jazz handles storage, sync, permissions, and history automatically.
 
 Create `src/schema.ts`:
 
 ```typescript
-import { co } from 'jazz-tools'
+import { co, setDefaultValidationMode } from 'jazz-tools'
 
+setDefaultValidationMode('strict')
+
+export const Message = co
+  .map({
+    text: co.plainText(),
+    image: co.optional(co.image()),
+  })
+  .resolved({
+    text: true,
+    image: true,
+  })
+  .withPermissions({
+    onInlineCreate: 'sameAsContainer',
+  })
+export type Message = co.loaded<typeof Message>
+
+export const Chat = co.list(Message).withPermissions({
+  onCreate: (owner) => owner.addMember('everyone', 'writer'),
+})
+export type Chat = co.loaded<typeof Chat>
+```
+
+That's 22 lines. Let's break it down.
+
+### Strict Validation
+
+```typescript
+setDefaultValidationMode('strict')
+```
+
+Enables runtime validation on all schema fields. Jazz will throw if you try to set a field to an invalid value.
+
+### The Message Schema
+
+```typescript
 export const Message = co.map({
   text: co.plainText(),
   image: co.optional(co.image()),
 })
-
-export const Chat = co.list(Message)
 ```
 
-That's it. Let's break it down:
+`co.map({})` defines a collaborative object — like a row in a database. Each instance gets a unique ID, tracks edit history, and syncs across all connected clients.
 
-- **`co.map({})`** defines a collaborative object (like a row in a database). Each instance gets a unique ID, tracks edit history, and syncs across all connected clients.
-- **`co.plainText()`** is a collaborative text type. It supports concurrent editing — two users can type in the same field without conflicts.
-- **`co.optional(co.image())`** is an optional image field that handles multi-resolution image uploads.
-- **`co.list(Message)`** defines a collaborative ordered list of `Message` objects.
+- **`co.plainText()`** — a collaborative text type that supports concurrent editing. Two users can type in the same field without conflicts.
+- **`co.optional(co.image())`** — an optional image field. Jazz handles multi-resolution image uploads, progressive loading, and blur placeholders.
 
-Every CoValue is:
+### Eager Resolution
 
-- **Automatically synced** — changes propagate instantly to all subscribers
-- **Conflict-free** — built on CRDTs, so concurrent edits merge cleanly
-- **Permission-controlled** — owned by a Group or Account that controls who can read/write
-- **History-tracked** — every edit records who made it and when
+```typescript
+  .resolved({
+    text: true,
+    image: true,
+  })
+```
+
+`.resolved()` tells Jazz to eagerly load nested fields (`text` and `image`) whenever a `Message` is loaded. Without this, you'd get unresolved reference stubs that require a separate loading step.
+
+### Inline Permissions
+
+```typescript
+  .withPermissions({
+    onInlineCreate: 'sameAsContainer',
+  })
+```
+
+When a `Message` is created inline (pushed into a `Chat` list), it automatically inherits the permissions of its parent container. No manual group creation needed.
+
+### The Chat Schema
+
+```typescript
+export const Chat = co.list(Message).withPermissions({
+  onCreate: (owner) => owner.addMember('everyone', 'writer'),
+})
+```
+
+`co.list(Message)` defines a collaborative ordered list of `Message` objects. The `.withPermissions()` block runs automatically when a `Chat` is created — it adds `'everyone'` as a `'writer'`, making the chat publicly writable.
+
+This is a key difference from the manual approach. Instead of creating a `Group`, setting members, and passing it as an owner, you declare the permission logic once on the schema and it runs automatically on every `Chat.create()`.
+
+### Type Extraction
+
+```typescript
+export type Message = co.loaded<typeof Message>
+export type Chat = co.loaded<typeof Chat>
+```
+
+`co.loaded<typeof X>` extracts the TypeScript type for a fully loaded CoValue. Use these types in component props and function signatures.
 
 ---
 
-## Step 4: Set Up the Root Provider
+# Set Up the Jazz Provider
 
-Jazz needs two things at the root of your app:
-
-1. A **sync connection** to Jazz Cloud (or your own server)
-2. An **auth provider** for user identity
+Jazz needs a provider at the root of your app to initialize the sync connection and user identity.
 
 Create `src/RootApp.vue`:
 
 ```vue
 <script setup lang="ts">
-import { JazzVueProvider, PasskeyAuthBasicUI } from 'community-jazz-vue'
+import { JazzVueProvider } from 'community-jazz-vue'
+import type { SyncConfig } from 'jazz-tools'
 import App from './App.vue'
+
+const characters = [
+  'Luffy',
+  'Zoro',
+  'Nami',
+  'Usopp',
+  'Sanji',
+  'Chopper',
+  'Robin',
+  'Franky',
+  'Brook',
+  'Jinbe',
+]
+
+function getRandomUsername() {
+  return `Anonymous ${characters[Math.floor(Math.random() * characters.length)]}`
+}
+
+const peer =
+  `wss://cloud.jazz.tools/?key=${import.meta.env.VITE_JAZZ_KEY ?? 'you@example.com'}` as const
+const sync: SyncConfig = { peer }
+const defaultProfileName = getRandomUsername()
 </script>
 
 <template>
-  <JazzVueProvider
-    :sync="{
-      peer: `wss://cloud.jazz.tools/?key=${import.meta.env.VITE_JAZZ_KEY ?? 'you@example.com'}`,
-    }"
-  >
-    <PasskeyAuthBasicUI appName="Jazz Vue Chat">
-      <App />
-    </PasskeyAuthBasicUI>
+  <JazzVueProvider :sync="sync" :defaultProfileName="defaultProfileName">
+    <App />
   </JazzVueProvider>
 </template>
 ```
 
-**`JazzVueProvider`** initializes the Jazz context and makes it available to all child components via Vue's `provide/inject`. Key props:
+### What's Happening Here
 
-| Prop            | Description                                |
-| --------------- | ------------------------------------------ |
-| `sync`          | WebSocket peer URL for Jazz Cloud sync     |
-| `AccountSchema` | Custom account schema (optional)           |
-| `storage`       | `"indexedDB"` for persistent local storage |
-| `guestMode`     | Allow anonymous users (default: `false`)   |
+**`JazzVueProvider`** initializes the Jazz context and makes it available to all child components via Vue's `provide/inject`.
 
-**`PasskeyAuthBasicUI`** renders a simple sign-up/log-in UI using WebAuthn passkeys. It only shows when the user isn't authenticated — once logged in, your `<App />` renders.
+| Prop                 | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `sync`               | WebSocket peer config for Jazz Cloud sync             |
+| `defaultProfileName` | Username for anonymous auth (auto-creates an account) |
+| `AccountSchema`      | Custom account schema (optional)                      |
 
-Update `src/main.ts` to use the new root:
+**Anonymous auth** — by passing `defaultProfileName`, Jazz automatically creates an anonymous account with that username. No sign-up form needed. Each browser session gets a unique identity. The random One Piece character names make it easy to tell users apart during testing.
+
+> **Bonus:** The actual codebase also registers the Jazz Inspector — a developer tool that lets you browse CoValues in real-time. See `src/RootApp.vue` for the full version with inspector setup.
+
+---
+
+# Entry Point & Routing
+
+### Entry Point
+
+`src/main.ts` mounts `RootApp` (which wraps your app with the Jazz provider):
 
 ```typescript
 import './assets/main.css'
@@ -145,73 +232,9 @@ app.use(router)
 app.mount('#app')
 ```
 
----
+### Router
 
-## Step 5: Build the App Shell
-
-`src/App.vue` is the authenticated layout — it only renders after the user signs in.
-
-```vue
-<script setup lang="ts">
-import { useAccount, useLogOut } from 'community-jazz-vue'
-import { useRouter } from 'vue-router'
-import { isLoaded } from './utils/jazz'
-
-const me = useAccount(undefined, { resolve: { profile: true } })
-const logOut = useLogOut()
-const router = useRouter()
-
-function logoutHandler() {
-  logOut()
-  router.push({ name: 'Home' })
-}
-</script>
-
-<template>
-  <div class="app-shell">
-    <header v-if="isLoaded(me)" class="app-header">
-      <p class="username">{{ me.profile?.name }}</p>
-      <button class="logout-btn" @click="logoutHandler">Log out</button>
-    </header>
-    <router-view />
-  </div>
-</template>
-```
-
-### Key Composables
-
-**`useAccount(Schema?, options?)`** returns a reactive ref to the current user's account. The `resolve` option tells Jazz which nested fields to load:
-
-```typescript
-// Load just the account
-const me = useAccount()
-
-// Load the account with its profile resolved
-const me = useAccount(undefined, { resolve: { profile: true } })
-```
-
-**`useLogOut()`** returns a function that signs the user out and clears local credentials.
-
-### The `isLoaded` Helper
-
-CoValues can be in a loading state while data is being fetched. Create `src/utils/jazz.ts`:
-
-```typescript
-import type { MaybeLoaded } from 'jazz-tools'
-
-export function isLoaded<T>(value: MaybeLoaded<T> | undefined | null): value is T {
-  if (!value || typeof value !== 'object') return false
-  return !('$isLoaded' in value && value.$isLoaded === false)
-}
-```
-
-This type guard lets you safely check if a CoValue has finished loading before accessing its properties.
-
----
-
-## Step 6: Set Up Routing
-
-Create `src/router/index.ts`:
+`src/router/index.ts` defines two routes:
 
 ```typescript
 import { createRouter, createWebHistory } from 'vue-router'
@@ -233,289 +256,466 @@ const router = createRouter({
 export default router
 ```
 
-The `/chat/:chatId` route takes a Jazz CoValue ID as a URL parameter. This is how users navigate to specific chats — and how you'd share a chat link.
+The `/chat/:chatId` route takes a Jazz CoValue ID as a URL parameter. Setting `props: true` passes `chatId` directly as a component prop — this is how `ChatView` receives the ID of the chat to display.
+
+`ChatView` is lazy-loaded with `() => import(...)` since the user always lands on `HomeView` first.
 
 ---
 
-## Step 7: Create a Chat (HomeView)
+# Creating a Chat (HomeView)
 
-When a user visits the home page, we automatically create a new chat and redirect to it.
+When a user visits the home page, we create a new chat and immediately redirect to it.
 
-Create `src/views/HomeView.vue`:
+`src/views/HomeView.vue`:
 
 ```vue
-<template>
-  <div v-if="!me">Loading...</div>
-  <div v-else class="creating">Creating a new chat...</div>
-</template>
-
 <script setup lang="ts">
-import { useAccount } from 'community-jazz-vue'
-import { Group } from 'jazz-tools'
-import { watch } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Chat } from '../schema'
-import { isLoaded } from '../utils/jazz'
 
 const router = useRouter()
-const me = useAccount()
 
-let stopped = false
-const stop = watch(
-  me,
-  (currentMe) => {
-    if (stopped || !isLoaded(currentMe)) return
-    stopped = true
-
-    // 1. Create a permission group
-    const group = Group.create({ owner: currentMe })
-    group.addMember('everyone', 'writer')
-
-    // 2. Create a chat owned by the group
-    const chat = Chat.create([], { owner: group })
-
-    // 3. Navigate to the new chat
-    stop?.()
-    router.push({ name: 'Chat', params: { chatId: chat.$jazz.id } })
-  },
-  { immediate: true },
-)
+onMounted(() => {
+  const chat = Chat.create([])
+  router.push({ name: 'Chat', params: { chatId: chat.$jazz.id } })
+})
 </script>
+
+<template>
+  <div class="flex flex-1 items-center justify-center" role="status">
+    <span class="sr-only">Loading...</span>
+    <!-- skeleton placeholder -->
+  </div>
+</template>
 ```
 
-### Understanding Groups and Permissions
-
-This is a core Jazz concept. Every CoValue has an **owner** — either an Account or a Group. The owner controls who can read and write the data.
+### How This Works
 
 ```typescript
-// Create a group owned by the current user
+const chat = Chat.create([])
+```
+
+This single line creates a new `Chat` CoValue with an empty message list. Because we defined `.withPermissions({ onCreate: ... })` on the `Chat` schema, the permission setup runs automatically — `'everyone'` is added as a `'writer'`. No manual `Group.create()` needed.
+
+```typescript
+router.push({ name: 'Chat', params: { chatId: chat.$jazz.id } })
+```
+
+Every CoValue has a unique `$jazz.id`. We use it as a URL parameter so users can share chat links. Navigating to `/chat/co_z1234...` will load that specific chat.
+
+### Contrast with the Manual Approach
+
+Without `.withPermissions()`, you'd need to do this:
+
+```typescript
+// Manual approach (NOT used in this app)
 const group = Group.create({ owner: currentMe })
-
-// Make it writable by everyone (public chat)
 group.addMember('everyone', 'writer')
-```
-
-Permission levels:
-
-- **`reader`** — can read the data
-- **`writer`** — can read and write
-- **`admin`** — can read, write, and manage members
-
-The `'everyone'` special member makes the group public. For a private chat, you'd add specific accounts:
-
-```typescript
-group.addMember(otherUser, 'writer')
-```
-
-When you create a CoValue, its owner's permissions apply:
-
-```typescript
 const chat = Chat.create([], { owner: group })
-// Anyone in the group can now read/write this chat
 ```
+
+The declarative approach is simpler, less error-prone, and keeps permission logic co-located with the schema.
 
 ---
 
-## Step 8: Build the Chat View
+# Building the Chat UI (ChatView)
 
-This is the main event. Create `src/views/ChatView.vue`:
+This is the main event — the view where users send and receive messages.
+
+`src/views/ChatView.vue`:
 
 ```vue
-<template>
-  <div v-if="loadedChat" class="chat-container">
-    <div class="messages">
-      <template v-if="loadedChat.length > 0">
-        <button
-          v-if="loadedChat.length > showNLastMessages"
-          class="show-more"
-          @click="showMoreMessages"
-        >
-          Show more
-        </button>
-        <div v-for="{ msg, by, time } in displayedMessages" :key="msg?.$jazz.id" class="message">
-          <p class="message-text">{{ msg?.text }}</p>
-          <small class="message-meta"> {{ by }} &mdash; {{ time }} </small>
-        </div>
-      </template>
-      <p v-else class="empty">No messages yet. Say something!</p>
-    </div>
-
-    <div class="input-bar">
-      <input
-        v-model="inputValue"
-        class="message-input"
-        placeholder="Type a message and press Enter"
-        @keydown.enter.prevent="sendMessage"
-      />
-      <button class="send-btn" @click="sendMessage">Send</button>
-    </div>
-  </div>
-  <div v-else class="loading">Loading...</div>
-</template>
-
 <script setup lang="ts">
-import { useCoState } from 'community-jazz-vue'
-import { co, type ID } from 'jazz-tools'
 import { computed, ref } from 'vue'
-import { Chat, Message } from '../schema'
-import { isLoaded } from '../utils/jazz'
+import { useAccount, useCoState, createImage } from 'community-jazz-vue'
+import type { ID } from 'jazz-tools'
+import { Chat } from '../schema'
+import ChatBubble from '../components/chat/ChatBubble.vue'
 
-const props = defineProps<{ chatId: ID<typeof Chat> }>()
+const INITIAL_MESSAGES_TO_SHOW = 30
+const MAX_IMAGE_SIZE_BYTES = 5_000_000
 
-const chat = useCoState(Chat, props.chatId, {
-  resolve: { $each: true },
+const { chatId } = defineProps<{ chatId: ID<typeof Chat> }>()
+
+const chat = useCoState(Chat, () => chatId, {
+  resolve: { $each: { text: true, image: true } },
 })
+const me = useAccount(undefined, { resolve: { profile: true } })
 
+const showNLastMessages = ref(INITIAL_MESSAGES_TO_SHOW)
 const inputValue = ref('')
-const showNLastMessages = ref(30)
+const uploadError = ref('')
+const isUploading = ref(false)
 
-const loadedChat = computed(() => {
-  const c = chat.value
-  return isLoaded(c) ? c : undefined
-})
+const isLoaded = computed(() => chat.value?.$isLoaded && me.value?.$isLoaded)
 
 const displayedMessages = computed(() => {
-  return loadedChat.value
-    ?.slice(-showNLastMessages.value)
-    .reverse()
-    .map((msg) => {
-      const edit = msg?.$jazz?.getEdits?.()?.text
-      return {
-        msg,
-        by: edit?.by?.profile?.name ?? 'Unknown',
-        time: edit?.madeAt?.toLocaleTimeString() ?? '',
-      }
-    })
+  const c = chat.value
+  if (!c?.$isLoaded) return []
+  return c.slice(-showNLastMessages.value).filter(Boolean).toReversed()
 })
 
-function showMoreMessages() {
-  const max = loadedChat.value?.length ?? showNLastMessages.value
-  showNLastMessages.value = Math.min(showNLastMessages.value + 10, max)
-}
-
 function sendMessage() {
-  const c = loadedChat.value
-  if (!inputValue.value.trim() || !c) return
-
-  c.$jazz.push(
-    Message.create({ text: co.plainText().create(inputValue.value, c.$jazz.owner) }, c.$jazz.owner),
-  )
-
+  const c = chat.value
+  if (!inputValue.value.trim() || !c?.$isLoaded) return
+  c.$jazz.push({ text: inputValue.value })
   inputValue.value = ''
 }
+
+async function sendImage(event: Event) {
+  const c = chat.value
+  if (!c?.$isLoaded) return
+
+  uploadError.value = ''
+
+  const { target } = event
+  if (!(target instanceof HTMLInputElement)) return
+  const file = target.files?.[0]
+  if (!file) return
+
+  // Reset file input so re-selecting the same file triggers change
+  target.value = ''
+
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    uploadError.value = 'Please upload an image less than 5MB.'
+    return
+  }
+
+  isUploading.value = true
+
+  try {
+    const image = await createImage(file, {
+      owner: c.$jazz.owner,
+      progressive: true,
+      placeholder: 'blur',
+    })
+    c.$jazz.push({ text: file.name, image })
+  } catch {
+    uploadError.value = 'Failed to upload image. Please try again.'
+  } finally {
+    isUploading.value = false
+  }
+}
+
+function showMore() {
+  showNLastMessages.value += 10
+}
 </script>
+
+<template>
+  <template v-if="isLoaded">
+    <div class="flex flex-1 flex-col-reverse overflow-y-auto" role="log" aria-label="Chat messages">
+      <template v-if="chat?.$isLoaded && chat.length > 0">
+        <ChatBubble
+          v-for="msg in displayedMessages"
+          :key="msg.$jazz.id"
+          :msg="msg"
+          :me-id="me!.$jazz.id"
+        />
+      </template>
+      <div v-else>Start a conversation below.</div>
+      <button v-if="chat?.$isLoaded && chat.length > showNLastMessages" @click="showMore">
+        Show more
+      </button>
+    </div>
+
+    <p v-if="uploadError" role="alert">{{ uploadError }}</p>
+    <form @submit.prevent="sendMessage">
+      <label>
+        <span class="sr-only">Send image</span>
+        <input
+          type="file"
+          accept="image/png, image/jpeg, image/gif"
+          class="hidden"
+          :disabled="isUploading"
+          @change="sendImage"
+        />
+      </label>
+      <input v-model="inputValue" placeholder="Message" maxlength="2048" :disabled="isUploading" />
+    </form>
+  </template>
+
+  <div v-else>Loading...</div>
+</template>
 ```
 
-Let's walk through the important parts.
+There's a lot here. Let's break it into parts.
 
-### Subscribing to Data with `useCoState`
+## Subscribing to Data with `useCoState`
 
 ```typescript
-const chat = useCoState(Chat, props.chatId, {
-  resolve: { $each: true },
+const chat = useCoState(Chat, () => chatId, {
+  resolve: { $each: { text: true, image: true } },
 })
 ```
 
 `useCoState` is the primary way to read collaborative data in Jazz + Vue. It:
 
 1. **Subscribes** to the CoValue by its ID
-2. **Returns a reactive `Ref`** that updates whenever the data changes (locally or from other users)
+2. **Returns a reactive `Ref`** that updates whenever the data changes — locally or from other users
 3. **Resolves nested references** based on the `resolve` option
 
-The `resolve` option tells Jazz how deep to load. Since `Chat` is a list of `Message` references, `{ $each: true }` means "load each message in the list." Without it, you'd get unresolved reference stubs instead of actual message objects.
+The first argument is the schema, the second is a getter function returning the ID (reactive — Jazz re-subscribes if the ID changes), and the third is the resolve depth.
 
-Common resolve patterns:
+`{ $each: { text: true, image: true } }` means: "for each message in the list, load the `text` and `image` fields." Without resolving, you'd get unresolved reference stubs.
+
+## Checking Load State with `$isLoaded`
 
 ```typescript
-// Load a single level
-useCoState(Chat, id, { resolve: { $each: true } })
+const isLoaded = computed(() => chat.value?.$isLoaded && me.value?.$isLoaded)
+```
 
-// Load nested fields
-useCoState(Project, id, {
-  resolve: {
-    tasks: {
-      $each: {
-        text: true, // resolve the plainText field
-        assignee: true, // resolve the account reference
-      },
-    },
-  },
+Every CoValue ref has a `$isLoaded` boolean property. Use it directly in templates and computed properties to gate rendering until data is ready.
+
+## Display Logic
+
+```typescript
+const displayedMessages = computed(() => {
+  const c = chat.value
+  if (!c?.$isLoaded) return []
+  return c.slice(-showNLastMessages.value).filter(Boolean).toReversed()
 })
 ```
 
-### Reading Edit History
+We show the last N messages, filter out any null entries, and reverse the array so the newest message appears at the bottom. The `flex-col-reverse` CSS handles the scroll direction.
 
-Jazz automatically tracks who made each edit and when:
-
-```typescript
-const edit = msg?.$jazz?.getEdits?.()?.text
-const authorName = edit?.by?.profile?.name
-const editTime = edit?.madeAt?.toLocaleTimeString()
-```
-
-`getEdits()` returns metadata for each field — who last edited it (`by`) and when (`madeAt`). No need to store `createdAt` or `authorId` fields manually. Jazz gives you this for free.
-
-### Creating and Pushing Messages
+## Sending a Text Message
 
 ```typescript
 function sendMessage() {
-  const c = loadedChat.value
-  if (!inputValue.value.trim() || !c) return
-
-  c.$jazz.push(
-    Message.create({ text: co.plainText().create(inputValue.value, c.$jazz.owner) }, c.$jazz.owner),
-  )
-
+  const c = chat.value
+  if (!inputValue.value.trim() || !c?.$isLoaded) return
+  c.$jazz.push({ text: inputValue.value })
   inputValue.value = ''
 }
 ```
 
-Breaking this down:
+`c.$jazz.push({ text: inputValue.value })` appends a new message to the chat list. Because `Message` has `onInlineCreate: 'sameAsContainer'`, the new message automatically inherits the chat's permissions.
 
-1. **`co.plainText().create(text, owner)`** — creates a new collaborative text value. The owner (the chat's group) determines who can edit it.
-2. **`Message.create({ text, ... }, owner)`** — creates a new Message CoValue with the given fields.
-3. **`c.$jazz.push(message)`** — appends the message to the chat list.
+The mutation is **instant locally** and **synced in the background**. Other users subscribed to this chat see the message appear in real-time.
 
-The mutation is **instant locally** and **synced in the background**. Other users subscribed to this chat will see the message appear in real-time.
+## Uploading Images
 
-### The `$jazz` API
+```typescript
+async function sendImage(event: Event) {
+  // ... file validation ...
 
-Every CoValue instance has a `$jazz` property that provides:
-
-| Method/Property         | Description                       |
-| ----------------------- | --------------------------------- |
-| `$jazz.id`              | Unique ID of this CoValue         |
-| `$jazz.owner`           | The Group or Account that owns it |
-| `$jazz.set(key, value)` | Set a field on a map              |
-| `$jazz.push(item)`      | Append to a list                  |
-| `$jazz.getEdits()`      | Get edit history per field        |
-
----
-
-## Step 9: Run It
-
-```bash
-npm run dev
+  const image = await createImage(file, {
+    owner: c.$jazz.owner,
+    progressive: true,
+    placeholder: 'blur',
+  })
+  c.$jazz.push({ text: file.name, image })
+}
 ```
 
-Open the app in two browser windows. Sign up with different accounts. When you create a chat in one window, copy the URL and open it in the other. Both users can send messages and see them appear in real-time.
+`createImage()` from `community-jazz-vue` handles image uploads with two key features:
+
+- **`progressive: true`** — generates multiple resolutions. The smallest loads first, then progressively sharper versions replace it.
+- **`placeholder: 'blur'`** — creates a tiny blur-hash placeholder that shows instantly while the full image loads.
+
+The image is pushed as part of a message, using the file name as the text.
 
 ---
 
-## Key Concepts Recap
+# Displaying Messages (ChatBubble)
 
-### How Jazz Sync Works
+`src/components/chat/ChatBubble.vue`:
 
-Jazz uses a lightweight 4-message sync protocol built on CRDTs:
+```vue
+<script setup lang="ts">
+import { computed } from 'vue'
+import type { Message } from '../../schema'
+import BubbleInfo from './BubbleInfo.vue'
+import ChatImage from './ChatImage.vue'
 
-1. Your app connects to Jazz Cloud via WebSocket
-2. When you create or mutate a CoValue, the change is applied locally first (instant UI update)
-3. The change is sent to Jazz Cloud, which broadcasts it to all other subscribers
-4. Other clients apply the incoming change — CRDTs guarantee consistency without conflicts
+const { msg, meId } = defineProps<{
+  msg: Message
+  meId: string
+}>()
 
-This means your app works **offline-first** by default. Changes queue up locally and sync when the connection is restored.
+const fromMe = computed(() => msg.$jazz.createdBy === meId)
+</script>
 
-### CoValues vs Traditional APIs
+<template>
+  <div :class="[fromMe ? 'items-end' : 'items-start', 'flex flex-col m-3']">
+    <BubbleInfo :createdBy="msg.$jazz.createdBy" :createdAt="msg.$jazz.createdAt" />
+    <div
+      :class="[
+        'rounded-2xl overflow-hidden max-w-[calc(100%-5rem)] shadow-sm p-1',
+        fromMe ? 'bg-white dark:bg-stone-900 dark:text-white' : 'bg-blue text-white',
+      ]"
+    >
+      <ChatImage
+        v-if="msg.image"
+        :imageId="msg.image.$jazz.id"
+        :alt="String(msg.text || 'Shared image')"
+      />
+      <p class="px-2 leading-relaxed">{{ msg.text }}</p>
+    </div>
+  </div>
+</template>
+```
+
+### Key Jazz APIs Used
+
+- **`msg.$jazz.createdBy`** — the account ID of who created this message. Jazz tracks this automatically.
+- **`msg.$jazz.createdAt`** — the timestamp when the message was created. No need for a `createdAt` field in your schema.
+
+The `fromMe` computed compares `createdBy` against the current user's ID to align messages left or right — just like any chat app.
+
+The component delegates sender info to `BubbleInfo` and image rendering to `ChatImage`.
+
+---
+
+# Working with User Accounts
+
+## Resolving the Sender (BubbleInfo)
+
+`src/components/chat/BubbleInfo.vue`:
+
+```vue
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useCoState } from 'community-jazz-vue'
+import { Account } from 'jazz-tools'
+
+const { createdBy, createdAt } = defineProps<{
+  createdBy?: string
+  createdAt: number
+}>()
+
+const formattedTime = computed(() =>
+  new Date(createdAt).toLocaleTimeString('en-US', { hour12: false }),
+)
+
+const isoTime = computed(() => new Date(createdAt).toISOString())
+
+const by = useCoState(Account, () => createdBy, {
+  resolve: { profile: true },
+})
+</script>
+
+<template>
+  <div class="mb-1.5 h-4 text-xs text-neutral-600">
+    <template v-if="by.$isLoaded">
+      {{ by.profile?.name }} &middot;
+      <time :datetime="isoTime">{{ formattedTime }}</time>
+    </template>
+  </div>
+</template>
+```
+
+This demonstrates a powerful pattern: **resolving any account by ID**. `useCoState(Account, () => createdBy, ...)` subscribes to the sender's account and loads their profile. Jazz syncs account data the same way it syncs any other CoValue.
+
+## Editing Your Username (App.vue)
+
+`src/App.vue` shows how to read and update the current user's profile:
+
+```vue
+<script setup lang="ts">
+import { useAccount, useLogOut } from 'community-jazz-vue'
+
+const me = useAccount(undefined, { resolve: { profile: true } })
+const logOut = useLogOut()
+
+function updateName(value: string | undefined) {
+  const m = me.value
+  if (!m?.$isLoaded) return
+  m.profile?.$jazz.set('name', value ?? '')
+}
+</script>
+
+<template>
+  <header v-if="me.$isLoaded">
+    <input
+      type="text"
+      :model-value="me.profile?.name"
+      placeholder="Set username"
+      @update:model-value="updateName"
+    />
+    <button @click="logOut">Log out</button>
+  </header>
+  <main>
+    <router-view />
+  </main>
+</template>
+```
+
+### Key Patterns
+
+**`useAccount()`** returns a reactive ref to the current user. With `{ resolve: { profile: true } }`, the user's profile is loaded and reactive.
+
+**`m.profile?.$jazz.set('name', value)`** mutates the profile name. The change is instant locally and syncs to all connected clients. Other users will see the updated name in their `BubbleInfo` components immediately.
+
+**`useLogOut()`** returns a function that signs the user out and clears local credentials.
+
+---
+
+# Image Support (ChatImage)
+
+`src/components/chat/ChatImage.vue`:
+
+```vue
+<script setup lang="ts">
+import { Image } from 'community-jazz-vue'
+
+const { imageId, alt } = defineProps<{
+  imageId: string
+  alt: string
+}>()
+</script>
+
+<template>
+  <Image
+    :imageId="imageId"
+    :alt="alt"
+    class="mb-1 h-auto max-h-80 max-w-full rounded-t-xl object-contain"
+    height="original"
+    width="original"
+  />
+</template>
+```
+
+The `Image` component from `community-jazz-vue` handles the rendering side of Jazz images:
+
+- It takes an `imageId` and loads the image data from Jazz
+- If the image was created with `progressive: true`, it shows the smallest resolution first, then progressively replaces it with sharper versions
+- If `placeholder: 'blur'` was used during upload, a blur placeholder appears instantly
+- `height="original"` and `width="original"` preserve the image's native dimensions
+
+The upload side (in `ChatView`) and the display side (here) are completely decoupled — any component that has the image ID can display it.
+
+---
+
+# How Real-Time Sync Works
+
+When you mutate a CoValue in Jazz, here's what happens:
+
+1. **Local mutation** — the change is applied instantly to your local state. Your UI updates immediately.
+2. **Sync to Jazz Cloud** — the change is sent over WebSocket to Jazz Cloud (or your own sync server).
+3. **Broadcast** — Jazz Cloud broadcasts the change to all other clients subscribed to that CoValue.
+4. **CRDT merge** — each client applies the incoming change using CRDTs, which guarantee consistency without conflicts.
+
+### CRDTs by Type
+
+| CoValue Type     | Merge Strategy                                        |
+| ---------------- | ----------------------------------------------------- |
+| `co.map()`       | Last-writer-wins per field                            |
+| `co.list()`      | Ordered insertion — concurrent appends don't conflict |
+| `co.plainText()` | Character-by-character merge (like Google Docs)       |
+
+### Offline-First by Default
+
+Jazz works offline. When you lose connectivity:
+
+- Mutations are applied locally and queued
+- The UI continues to work normally
+- When the connection is restored, queued changes sync automatically
+- CRDTs ensure consistency even after extended offline periods
+
+### Traditional vs Jazz
 
 | Traditional                         | Jazz                                          |
 | ----------------------------------- | --------------------------------------------- |
@@ -523,39 +723,16 @@ This means your app works **offline-first** by default. Changes queue up locally
 | Write CRUD handlers                 | Use `create()`, `$jazz.set()`, `$jazz.push()` |
 | Manage WebSocket rooms              | Jazz syncs automatically by CoValue ID        |
 | Store `createdAt`, `updatedBy`      | Jazz tracks edit history automatically        |
-| Implement access control middleware | Set permissions via Groups                    |
+| Implement access control middleware | Declare permissions with `.withPermissions()` |
 | Handle conflict resolution          | CRDTs handle it (no conflicts possible)       |
-
-### The Resolve Pattern
-
-Jazz loads data lazily. A `Chat` containing `Message` references won't load the messages until you ask for them:
-
-```typescript
-// Just the chat list (messages are unresolved refs)
-useCoState(Chat, id)
-
-// Chat with all messages loaded
-useCoState(Chat, id, { resolve: { $each: true } })
-
-// Chat with messages and their images loaded
-useCoState(Chat, id, {
-  resolve: {
-    $each: {
-      image: true,
-    },
-  },
-})
-```
-
-This gives you fine-grained control over what data is fetched and subscribed to.
 
 ---
 
-## Going Further
+# Next Steps
 
 ### Custom Account Schema
 
-Define what data is stored on each user's account:
+For apps that need user-specific data, define a custom account schema:
 
 ```typescript
 import { co, z } from 'jazz-tools'
@@ -577,6 +754,20 @@ Then pass it to the provider:
 <JazzVueProvider :AccountSchema="MyAccount" :sync="syncConfig">
 ```
 
+### Passkey Authentication
+
+For persistent user accounts (instead of anonymous sessions), use passkey auth:
+
+```vue
+import { JazzVueProvider, PasskeyAuthBasicUI } from 'community-jazz-vue'
+
+<JazzVueProvider :sync="sync">
+  <PasskeyAuthBasicUI appName="My App">
+    <App />
+  </PasskeyAuthBasicUI>
+</JazzVueProvider>
+```
+
 ### Invite Links
 
 Share access to a CoValue via invite links:
@@ -585,52 +776,40 @@ Share access to a CoValue via invite links:
 import { createInviteLink } from 'community-jazz-vue'
 
 const link = createInviteLink(chat, 'writer')
-// => "https://yourapp.com/#/invite/..."
 ```
 
-Accept invites:
+### PWA Support
 
-```typescript
-import { useAcceptInvite } from 'community-jazz-vue'
+This project includes PWA support via `vite-plugin-pwa`. See `vite.config.ts` for the service worker configuration and `src/components/ReloadPrompt.vue` for the update prompt.
 
-useAcceptInvite({
-  invitedObjectSchema: Chat,
-  onAccept: (chatId) => {
-    router.push({ name: 'Chat', params: { chatId } })
-  },
-})
-```
+### Jazz Inspector
 
-### Other Auth Providers
+The Jazz Inspector is a developer tool that lets you browse all CoValues in real-time. It's registered in `src/RootApp.vue` and appears as a floating button in the bottom-left corner.
 
-Jazz supports multiple auth strategies:
+### Learn More
 
-```typescript
-// Passphrase-based (BIP39 mnemonic)
-import { usePassphraseAuth } from 'community-jazz-vue'
-const auth = usePassphraseAuth({ wordlist: english })
-
-// Clerk integration
-import { JazzVueProviderWithClerk } from 'community-jazz-vue'
-```
+- [Jazz Documentation](https://jazz.tools/docs)
+- [Jazz Discord](https://discord.gg/utDMjHYg42)
+- [community-jazz-vue on npm](https://www.npmjs.com/package/community-jazz-vue)
 
 ---
 
-## Full File Structure
+## File Structure
 
 ```
 src/
-├── main.ts              # App entry, mounts RootApp
-├── RootApp.vue          # JazzVueProvider + PasskeyAuthBasicUI
-├── App.vue              # Authenticated shell with header + router-view
-├── schema.ts            # Jazz data model (Message, Chat)
+├── main.ts                         # App entry, mounts RootApp
+├── RootApp.vue                     # JazzVueProvider + anonymous auth
+├── App.vue                         # App shell with username editing + logout
+├── schema.ts                       # Jazz data model (Message, Chat)
 ├── router/
-│   └── index.ts         # Routes: Home + Chat
+│   └── index.ts                    # Routes: Home + Chat
 ├── views/
-│   ├── HomeView.vue     # Creates new chat + redirects
-│   └── ChatView.vue     # Main chat UI with useCoState
-└── utils/
-    └── jazz.ts          # isLoaded helper
+│   ├── HomeView.vue                # Creates new chat + redirects
+│   └── ChatView.vue                # Main chat UI with messages + image upload
+└── components/
+    └── chat/
+        ├── ChatBubble.vue          # Message bubble with alignment
+        ├── BubbleInfo.vue          # Sender name + timestamp
+        └── ChatImage.vue           # Jazz Image component wrapper
 ```
-
-That's it — a fully functional real-time collaborative chat app with authentication, permissions, edit history, and live sync. No backend code, no database setup, no WebSocket handlers. Just schemas and Vue components.

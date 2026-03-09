@@ -67,7 +67,7 @@
   },
   "lint-staged": {
     "*.{ts,vue}": [
-      "oxlint --fix",
+      "oxlint --fix --ignore-pattern typed-router.d.ts",
       "oxfmt"
     ],
     "*.{json,md,html,css}": "oxfmt"

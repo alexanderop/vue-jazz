@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Chat } from '../schema'
-import { BaseSkeleton } from '../components/ui/skeleton'
+import { Chat } from '@/schema'
+import { BaseSkeleton } from '@/components/ui/skeleton'
 
 const router = useRouter()
 
 onMounted(() => {
   const chat = Chat.create([])
-  router.push({ name: 'Chat', params: { chatId: chat.$jazz.id } })
+  router.push({ name: '/chat/[chatId]', params: { chatId: chat.$jazz.id } })
 })
 </script>
 

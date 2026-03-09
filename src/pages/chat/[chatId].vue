@@ -1,12 +1,16 @@
+<route lang="json5">
+{ props: true }
+</route>
+
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useAccount, useCoState, createImage } from 'community-jazz-vue'
 import type { ID } from 'jazz-tools'
-import { Chat } from '../schema'
-import { BaseButton } from '../components/ui/button'
-import { BaseInput } from '../components/ui/input'
-import { BaseSkeleton } from '../components/ui/skeleton'
-import ChatBubble from '../components/chat/ChatBubble.vue'
+import { Chat } from '@/schema'
+import { BaseButton } from '@/components/ui/button'
+import { BaseInput } from '@/components/ui/input'
+import { BaseSkeleton } from '@/components/ui/skeleton'
+import ChatBubble from '@/components/chat/ChatBubble.vue'
 
 const INITIAL_MESSAGES_TO_SHOW = 30
 const MAX_IMAGE_SIZE_BYTES = 5_000_000
