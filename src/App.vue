@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useLogOut } from 'community-jazz-vue'
 import { BaseInput } from '@/components/ui/input'
 import { useProfileEditor } from '@/composables/useProfileEditor'
 import { useChatIdClipboard } from '@/composables/useChatIdClipboard'
@@ -9,7 +8,6 @@ import NetworkStatus from './components/NetworkStatus.vue'
 
 const { me, usernameWidth, updateName } = useProfileEditor()
 const { chatId, copied, copyId } = useChatIdClipboard()
-const logOut = useLogOut()
 </script>
 
 <template>
@@ -42,9 +40,6 @@ const logOut = useLogOut()
         @click="copyId"
       >
         <span>{{ copied ? 'Copied!' : chatId.slice(0, 12) + '…' }}</span>
-      </button>
-      <button type="button" class="cursor-pointer" :class="{ 'ml-auto': !chatId }" @click="logOut">
-        Log out
       </button>
     </header>
     <main id="main-content" class="flex flex-1 flex-col overflow-hidden">

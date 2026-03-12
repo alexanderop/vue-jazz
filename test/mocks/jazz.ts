@@ -15,7 +15,6 @@ export function mockJazzModules() {
       props: ['imageId', 'alt', 'height', 'width'],
       template: '<img :src="\'/mock-image/\' + imageId" :alt="alt" />',
     },
-    useLogOut: () => vi.fn(),
   }))
 
   vi.mock('jazz-tools', () => ({

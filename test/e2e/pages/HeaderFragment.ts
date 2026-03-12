@@ -3,12 +3,10 @@ import type { Page, Locator } from '@playwright/test'
 export class HeaderFragment {
   readonly usernameInput: Locator
   readonly chatIdButton: Locator
-  readonly logoutButton: Locator
 
   constructor(private page: Page) {
     this.usernameInput = page.locator('[aria-label="Username"]')
     this.chatIdButton = page.locator('header button', { hasText: /co_z/ })
-    this.logoutButton = page.getByRole('button', { name: 'Log out' })
   }
 
   async setUsername(name: string) {
@@ -22,9 +20,5 @@ export class HeaderFragment {
 
   async copyChatId() {
     await this.chatIdButton.click()
-  }
-
-  async logout() {
-    await this.logoutButton.click()
   }
 }

@@ -19,9 +19,3 @@ test('direct URL navigation to a valid chat works', async ({ page }) => {
 
   await expect(chat.chatLog).toBeVisible()
 })
-
-test('logout button is visible', async ({ page }) => {
-  const chat = await ChatPage.createFromHome(page)
-
-  await expect(chat.header.logoutButton).toBeVisible()
-})
