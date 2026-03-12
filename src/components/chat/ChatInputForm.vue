@@ -40,7 +40,7 @@ function handleFileChange(e: Event) {
     {{ uploadError }}
   </p>
   <form
-    class="mt-auto flex gap-1 bg-stone-100 px-3 pb-3 pt-1 dark:border-stone-900 dark:bg-transparent"
+    class="flex shrink-0 gap-1 bg-stone-100 px-3 pb-3 pt-1 dark:border-stone-900 dark:bg-transparent"
     @submit.prevent="emit('submit')"
   >
     <label

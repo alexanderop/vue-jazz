@@ -16,7 +16,7 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="flex flex-1 flex-col overflow-y-auto"
+    class="flex min-h-0 flex-1 flex-col overflow-y-auto"
     role="log"
     aria-live="polite"
     aria-label="Chat messages"

@@ -29,7 +29,7 @@ const {
 </script>
 
 <template>
-  <template v-if="isLoaded">
+  <div v-if="isLoaded" class="flex flex-1 flex-col overflow-hidden">
     <ChatMessageList
       :messages="displayedMessages"
       :me-id="me!.$jazz.id"
@@ -43,7 +43,7 @@ const {
       @submit="sendMessage"
       @upload="sendImage"
     />
-  </template>
+  </div>
 
   <div v-else class="flex flex-1 items-center justify-center" role="status">
     <div class="flex flex-col items-center gap-3">
